@@ -490,4 +490,170 @@
                 infoBtn.title = 'شرح القطاع';
                 optionDiv.appendChild(textSpan);
                 optionDiv.appendChild(infoBtn);
-                const descPanel 
+                const descPanel = document.createElement('div');
+                descPanel.className = 'desc-panel';
+                descPanel.innerHTML = `<div>${sectorDescriptions[sector] || 'وصف القطاع غير متوفر حالياً.'}</div>`;
+                wrapper.appendChild(optionDiv);
+                wrapper.appendChild(descPanel);
+                sectorGroup.appendChild(wrapper);
+                
+                optionDiv.addEventListener('click', (e) => {
+                    if (e.target === infoBtn) return;
+                    userData.sector = sector;
+                    document.querySelectorAll('#sector-group .option-item').forEach(opt => opt.classList.remove('selected'));
+                    optionDiv.classList.add('selected');
+                    validateCurrentStep();
+                });
+                infoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('#sector-group .desc-panel').forEach(panel => {
+                        if (panel !== descPanel) panel.classList.remove('open');
+                    });
+                    descPanel.classList.toggle('open');
+                });
+            });
+        }
+        
+        function bindTextFields() {
+            const nameField = document.getElementById('input-name');
+            const sourceField = document.getElementById('input-source');
+            nameField.addEventListener('input', (e) => {
+                userData.name = e.target.value;
+                validateCurrentStep();
+            });
+            sourceField.addEventListener('input', (e) => {
+                userData.source = e.target.value;
+                validateCurrentStep();
+            });
+        }
+        
+        function enterReviewMode() {
+            isReviewMode = true;
+            q1.classList.remove('active');
+            q2.classList.remove('active');
+            q3.classList.remove('active');
+            q4.classList.remove('active');
+            reviewPanel.style.display = 'block';
+            nextBtn.style.display = 'none';
+            ariseBtn.style.display = 'block';
+            updateReviewContent();
+            updateProgressAndStep();
+        }
+        
+        function updateReviewContent() {
+            reviewContent.innerHTML = `
+                <div class="review-row"><span>📛 الاسم المستعار:</span><span>${escapeHtml(userData.name) || '—'}</span></div>
+                <div class="review-row"><span>🔗 عميل الإحالة:</span><span>${escapeHtml(userData.source) || '—'}</span></div>
+                <div class="review-row"><span>🏅 الرتبة البرمجية:</span><span>${escapeHtml(userData.level) || '—'}</span></div>
+                <div class="review-row"><span>🎯 القطاع المستهدف:</span><span>${escapeHtml(userData.sector) || '—'}</span></div>
+            `;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '—';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        function exitReviewMode() {
+            isReviewMode = false;
+            reviewPanel.style.display = 'none';
+            nextBtn.style.display = 'block';
+            ariseBtn.style.display = 'none';
+            currentStep = 1;
+            showStep(1);
+            document.getElementById('input-name').value = userData.name;
+            document.getElementById('input-source').value = userData.source;
+            document.querySelectorAll('#level-group .option-item').forEach(opt => {
+                if (opt.getAttribute('data-level') === userData.level) opt.classList.add('selected');
+                else opt.classList.remove('selected');
+            });
+            document.querySelectorAll('#sector-group .option-item').forEach(opt => {
+                if (opt.getAttribute('data-sector') === userData.sector) opt.classList.add('selected');
+                else opt.classList.remove('selected');
+            });
+            validateCurrentStep();
+        }
+        
+        function handleNext() {
+            if (isReviewMode) return;
+            if (currentStep === 1) {
+                if (!userData.name.trim()) return;
+                currentStep = 2;
+                showStep(2);
+            } else if (currentStep === 2) {
+                if (!userData.source.trim()) return;
+                currentStep = 3;
+                showStep(3);
+            } else if (currentStep === 3) {
+                if (!userData.level) {
+                    showToast("⚠️ يرجى اختيار الرتبة البرمجية", true);
+                    return;
+                }
+                currentStep = 4;
+                showStep(4);
+            } else if (currentStep === 4) {
+                if (!userData.sector) {
+                    showToast("⚠️ يرجى اختيار القطاع المستهدف", true);
+                    return;
+                }
+                enterReviewMode();
+            }
+        }
+        
+        async function sendToWhatsApp() {
+            if (!userData.name || !userData.source || !userData.level || !userData.sector) {
+                showToast("❌ البيانات غير مكتملة", true);
+                return;
+            }
+            const message = `ـ وثـيـقـة الأهلية ╎ 𝐄𝐋𝐈𝐆𝐈𝐁𝐈𝐋𝐈𝐓𝐘📑\n` +
+                            `• الـاسـم: [ ${userData.name} ]\n` +
+                            `• الـمـستوي: [ ${userData.level} ]\n` +
+                            `• الـقطاع: [ ${userData.sector} ]\n` +
+                            `• الـمصدر: [ ${userData.source} ]\n` +
+                            `━━━━━━━━━━\nArise.`;
+            try {
+                await navigator.clipboard.writeText(message);
+                showToast("✅ تم نسخ الوثيقة تلقائياً! جارٍ التوجيه");
+            } catch (err) {
+                showToast("📋 تم التوجيه (تعذر النسخ)");
+            }
+            const waUrl = `https://chat.whatsapp.com/DC1XDyXPQHZ0CGkxX0X5Vu?text=${encodeURIComponent(message)}`;
+            window.open(waUrl, '_blank');
+        }
+        
+        function addEnterBehavior() {
+            const inputs = [document.getElementById('input-name'), document.getElementById('input-source')];
+            inputs.forEach(inp => {
+                inp.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !nextBtn.disabled && !isReviewMode && (currentStep === 1 || currentStep === 2)) {
+                        e.preventDefault();
+                        handleNext();
+                    }
+                });
+            });
+        }
+        
+        function init() {
+            buildLevelOptions();
+            buildSectorOptions();
+            bindTextFields();
+            addEnterBehavior();
+            nextBtn.addEventListener('click', handleNext);
+            ariseBtn.addEventListener('click', sendToWhatsApp);
+            editReviewBtn.addEventListener('click', exitReviewMode);
+            validateCurrentStep();
+            updateProgressAndStep();
+            document.getElementById('input-name').value = userData.name;
+            document.getElementById('input-source').value = userData.source;
+        }
+        
+        init();
+    })();
+</script>
+</body>
+</html>
