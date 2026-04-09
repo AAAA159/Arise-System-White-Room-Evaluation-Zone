@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Arise System | White Room — Evaluation Zone</title>
+    
+    <!-- أيقونة المتصفح (favicon) حرف A أبيض -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%239c27b0' rx='20'/%3E%3Ctext x='50' y='70' font-size='70' font-family='Arial, sans-serif' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+    
+    <!-- تحسينات لمشاركة الرابط (WhatsApp, Telegram, Facebook...) -->
+    <meta property="og:title" content="Arise System | White Room">
+    <meta property="og:description" content="انضم إلى غرفة التقييم – سجل بياناتك واختر قطاعك">
+    <meta property="og:image" content="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Crect width='500' height='500' fill='%239c27b0'/%3E%3Ctext x='250' y='340' font-size='280' font-family='Arial, sans-serif' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+    <meta property="og:image:width" content="500">
+    <meta property="og:image:height" content="500">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Arise System | White Room">
+    <meta name="twitter:description" content="بوابة التسجيل في Arise - حدد هويتك وانضم للقطاع المناسب">
+    <meta name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Crect width='500' height='500' fill='%239c27b0'/%3E%3Ctext x='250' y='340' font-size='280' font-family='Arial, sans-serif' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+    
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600&family=Tajawal:wght@300;500;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -324,14 +340,12 @@
 
 <script>
     (function() {
-        // تعريف الرتب مع الشرح
         const levelDescriptions = {
             "مبتدئ (Novice)": "🌱 المستوى المبتدئ: أساسيات البرمجة، فهم بسيط للأنظمة، يتطلب إشراف وتدريب في بيئة Arise.",
             "متوسط (Scholar)": "📘 المستوى المتوسط: يمتلك معرفة جيدة، قادر على تنفيذ مهام مستقلة، يشارك في مشاريع الفريق.",
             "محترف (Elite)": "⚡ المستوى المحترف: خبير في مجاله، يقود مشاريع، يساهم في تطوير البنية التحتية للنظام."
         };
         
-        // تعريف القطاعات (تم إزالة The Archive و Quest Board)
         const sectorDescriptions = {
             "Security Center": "🛡️ مركز الأمن: حماية الأنظمة، اختبار الاختراق الأخلاقي، مراقبة الثغرات، تأمين البنية التحتية.",
             "Visual Arcane": "👁️ السحر البصري: تطوير واجهات المستخدم، تجربة المستخدم، تصميم الجرافيك، تفاعلات بصرية إبداعية.",
@@ -340,7 +354,6 @@
             "Strategy Room": "♟️ غرفة الاستراتيجية: تخطيط المشاريع، تحليل المخاطر، صنع القرار، إدارة الفرق والموارد."
         };
         
-        // قائمة القطاعات المتاحة (بدون The Archive و Quest Board)
         const availableSectors = [
             "Security Center", "Visual Arcane", "Logic Lab", 
             "Development Core", "Strategy Room"
@@ -461,7 +474,6 @@
             });
         }
         
-        // بناء خيارات القطاعات (بدون الأقسام المحذوفة)
         function buildSectorOptions() {
             sectorGroup.innerHTML = '';
             availableSectors.forEach(sector => {
@@ -478,32 +490,4 @@
                 infoBtn.title = 'شرح القطاع';
                 optionDiv.appendChild(textSpan);
                 optionDiv.appendChild(infoBtn);
-                const descPanel = document.createElement('div');
-                descPanel.className = 'desc-panel';
-                descPanel.innerHTML = `<div>${sectorDescriptions[sector] || 'وصف القطاع غير متوفر حالياً.'}</div>`;
-                wrapper.appendChild(optionDiv);
-                wrapper.appendChild(descPanel);
-                sectorGroup.appendChild(wrapper);
-                
-                optionDiv.addEventListener('click', (e) => {
-                    if (e.target === infoBtn) return;
-                    userData.sector = sector;
-                    document.querySelectorAll('#sector-group .option-item').forEach(opt => opt.classList.remove('selected'));
-                    optionDiv.classList.add('selected');
-                    validateCurrentStep();
-                });
-                infoBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    document.querySelectorAll('#sector-group .desc-panel').forEach(panel => {
-                        if (panel !== descPanel) panel.classList.remove('open');
-                    });
-                    descPanel.classList.toggle('open');
-                });
-            });
-        }
-        
-        function bindTextFields() {
-            const nameField = document.getElementById('input-name');
-            const sourceField = document.getElementById('input-source');
-            nameField.addEventListener('input', (e) => {
-                userData.name = e.target.value;
+                const descPanel 
