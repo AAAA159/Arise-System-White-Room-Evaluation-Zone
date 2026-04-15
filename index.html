@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Arise System | White Room — Evaluation Zone</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600&family=Tajawal:wght@300;500;800&display=swap" rel="stylesheet">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --bg-black: #050505;
@@ -112,7 +115,7 @@
             line-height: 1.5;
         }
 
-        input[type="text"] {
+        input[type="text"], input[type="tel"] {
             width: 100%;
             background: var(--card-bg);
             border: 1px solid #333;
@@ -124,7 +127,7 @@
             transition: 0.3s;
         }
 
-        input[type="text"]:focus { border-color: var(--accent-purple); box-shadow: var(--glow); }
+        input:focus { border-color: var(--accent-purple); box-shadow: var(--glow); }
 
         .option-wrapper {
             margin-bottom: 10px;
@@ -272,6 +275,17 @@
             font-family: 'Tajawal', sans-serif;
             box-shadow: var(--glow);
         }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -284,7 +298,7 @@
     <div class="content-area">
         <div class="step-indicator">
             <span id="step-info-text">SYSTEM // INITIALIZING_PHASE</span>
-            <span id="step-counter">1/4</span>
+            <span id="step-counter">1/5</span>
         </div>
         <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
         
@@ -308,6 +322,12 @@
             <div id="sector-group"></div>
         </div>
 
+        <div class="question-card" id="q5">
+            <div class="question-text">📞 رقم الهاتف للتواصل عند بدء الدفعة:</div>
+            <input type="tel" id="input-phone" placeholder="مثال: +966xxxxxxxx" autocomplete="off" dir="ltr">
+            <p style="font-size:0.8rem; opacity:0.6; margin-top:10px;">سيتم التواصل معك عبر الواتساب عند انطلاق البرنامج.</p>
+        </div>
+
         <div id="review-panel" class="review-panel">
             <h3><i>📋 وثيقة الأهلية النهائية</i></h3>
             <div id="review-content"></div>
@@ -324,6 +344,19 @@
 
 <script>
     (function() {
+        // ====================== Firebase ======================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnX84QRzFn7dVdTK-Tbf_OUAxQ6IJpPSs",
+            authDomain: "arise-tech-academy.firebaseapp.com",
+            projectId: "arise-tech-academy",
+            storageBucket: "arise-tech-academy.firebasestorage.app",
+            messagingSenderId: "712404106927",
+            appId: "1:712404106927:web:e543d0985721f628335e5a"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const studentsCollection = db.collection("students");
+
         // تعريف الرتب مع الشرح
         const levelDescriptions = {
             "مبتدئ (Novice)": "🌱 المستوى المبتدئ: أساسيات البرمجة، فهم بسيط للأنظمة، يتطلب إشراف وتدريب في بيئة Arise.",
@@ -331,7 +364,6 @@
             "محترف (Elite)": "⚡ المستوى المحترف: خبير في مجاله، يقود مشاريع، يساهم في تطوير البنية التحتية للنظام."
         };
         
-        // تعريف القطاعات (تم إزالة The Archive و Quest Board)
         const sectorDescriptions = {
             "Security Center": "🛡️ مركز الأمن: حماية الأنظمة، اختبار الاختراق الأخلاقي، مراقبة الثغرات، تأمين البنية التحتية.",
             "Visual Arcane": "👁️ السحر البصري: تطوير واجهات المستخدم، تجربة المستخدم، تصميم الجرافيك، تفاعلات بصرية إبداعية.",
@@ -340,20 +372,21 @@
             "Strategy Room": "♟️ غرفة الاستراتيجية: تخطيط المشاريع، تحليل المخاطر، صنع القرار، إدارة الفرق والموارد."
         };
         
-        // قائمة القطاعات المتاحة (بدون The Archive و Quest Board)
         const availableSectors = [
             "Security Center", "Visual Arcane", "Logic Lab", 
             "Development Core", "Strategy Room"
         ];
         
-        let userData = { name: '', source: '', level: '', sector: '' };
+        let userData = { name: '', source: '', level: '', sector: '', phone: '' };
         let currentStep = 1;
+        const totalSteps = 5; // أصبح 5 خطوات
         let isReviewMode = false;
         
         const q1 = document.getElementById('q1');
         const q2 = document.getElementById('q2');
         const q3 = document.getElementById('q3');
         const q4 = document.getElementById('q4');
+        const q5 = document.getElementById('q5');
         const nextBtn = document.getElementById('next-btn');
         const ariseBtn = document.getElementById('arise-btn');
         const stepInfoSpan = document.getElementById('step-info-text');
@@ -364,6 +397,7 @@
         const editReviewBtn = document.getElementById('edit-review-btn');
         const levelGroup = document.getElementById('level-group');
         const sectorGroup = document.getElementById('sector-group');
+        const phoneInput = document.getElementById('input-phone');
         
         function showToast(msg, isError = false) {
             const toast = document.getElementById('toastMsg');
@@ -374,19 +408,21 @@
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateX(-50%) scale(0.9)';
-            }, 2500);
+            }, 3000);
         }
         
         function updateProgressAndStep() {
             if (!isReviewMode) {
-                let phaseText = '';
-                if (currentStep === 1) phaseText = 'SYSTEM // PHASE_01 : الهوية';
-                else if (currentStep === 2) phaseText = 'SYSTEM // PHASE_02 : المصدر';
-                else if (currentStep === 3) phaseText = 'SYSTEM // PHASE_03 : الرتبة';
-                else if (currentStep === 4) phaseText = 'SYSTEM // PHASE_04 : القطاع';
-                stepInfoSpan.innerText = phaseText;
-                stepCounterSpan.innerText = `${currentStep}/4`;
-                const percent = ((currentStep - 1) / 3) * 100;
+                const phaseMap = {
+                    1: 'الهوية',
+                    2: 'المصدر',
+                    3: 'الرتبة',
+                    4: 'القطاع',
+                    5: 'التواصل'
+                };
+                stepInfoSpan.innerText = `SYSTEM // PHASE_0${currentStep} : ${phaseMap[currentStep]}`;
+                stepCounterSpan.innerText = `${currentStep}/${totalSteps}`;
+                const percent = ((currentStep - 1) / (totalSteps - 1)) * 100;
                 progressFill.style.width = `${percent}%`;
             } else {
                 stepInfoSpan.innerText = 'SYSTEM // READY FOR DEPLOY';
@@ -404,6 +440,11 @@
             else if (currentStep === 2) nextBtn.disabled = userData.source.trim().length < 2;
             else if (currentStep === 3) nextBtn.disabled = !userData.level;
             else if (currentStep === 4) nextBtn.disabled = !userData.sector;
+            else if (currentStep === 5) {
+                const phone = userData.phone.trim();
+                // تحقق بسيط: يجب أن يحتوي على أرقام وقد يبدأ بـ +
+                nextBtn.disabled = phone.length < 8 || !/^[\d\s\-\+\(\)]+$/.test(phone);
+            }
         }
         
         function showStep(step) {
@@ -412,10 +453,12 @@
             q2.classList.remove('active');
             q3.classList.remove('active');
             q4.classList.remove('active');
+            q5.classList.remove('active');
             if (step === 1) q1.classList.add('active');
             else if (step === 2) q2.classList.add('active');
             else if (step === 3) q3.classList.add('active');
             else if (step === 4) q4.classList.add('active');
+            else if (step === 5) q5.classList.add('active');
             updateProgressAndStep();
             validateCurrentStep();
         }
@@ -461,7 +504,6 @@
             });
         }
         
-        // بناء خيارات القطاعات (بدون الأقسام المحذوفة)
         function buildSectorOptions() {
             sectorGroup.innerHTML = '';
             availableSectors.forEach(sector => {
@@ -513,6 +555,10 @@
                 userData.source = e.target.value;
                 validateCurrentStep();
             });
+            phoneInput.addEventListener('input', (e) => {
+                userData.phone = e.target.value;
+                validateCurrentStep();
+            });
         }
         
         function enterReviewMode() {
@@ -521,6 +567,7 @@
             q2.classList.remove('active');
             q3.classList.remove('active');
             q4.classList.remove('active');
+            q5.classList.remove('active');
             reviewPanel.style.display = 'block';
             nextBtn.style.display = 'none';
             ariseBtn.style.display = 'block';
@@ -534,6 +581,7 @@
                 <div class="review-row"><span>🔗 عميل الإحالة:</span><span>${escapeHtml(userData.source) || '—'}</span></div>
                 <div class="review-row"><span>🏅 الرتبة البرمجية:</span><span>${escapeHtml(userData.level) || '—'}</span></div>
                 <div class="review-row"><span>🎯 القطاع المستهدف:</span><span>${escapeHtml(userData.sector) || '—'}</span></div>
+                <div class="review-row"><span>📞 رقم الهاتف:</span><span>${escapeHtml(userData.phone) || '—'}</span></div>
             `;
         }
         
@@ -556,6 +604,7 @@
             showStep(1);
             document.getElementById('input-name').value = userData.name;
             document.getElementById('input-source').value = userData.source;
+            phoneInput.value = userData.phone;
             document.querySelectorAll('#level-group .option-item').forEach(opt => {
                 if (opt.getAttribute('data-level') === userData.level) opt.classList.add('selected');
                 else opt.classList.remove('selected');
@@ -589,36 +638,71 @@
                     showToast("⚠️ يرجى اختيار القطاع المستهدف", true);
                     return;
                 }
+                currentStep = 5;
+                showStep(5);
+            } else if (currentStep === 5) {
+                if (!userData.phone || userData.phone.trim().length < 8) {
+                    showToast("⚠️ يرجى إدخال رقم هاتف صحيح", true);
+                    return;
+                }
                 enterReviewMode();
             }
         }
         
-        async function sendToWhatsApp() {
-            if (!userData.name || !userData.source || !userData.level || !userData.sector) {
+        async function sendToFirebaseAndProceed() {
+            if (!userData.name || !userData.source || !userData.level || !userData.sector || !userData.phone) {
                 showToast("❌ البيانات غير مكتملة", true);
                 return;
             }
-            const message = `ـ وثـيـقـة الأهلية ╎ 𝐄𝐋𝐈𝐆𝐈𝐁𝐈𝐋𝐈𝐓𝐘📑\n` +
-                            `• الـاسـم: [ ${userData.name} ]\n` +
-                            `• الـمـستوي: [ ${userData.level} ]\n` +
-                            `• الـقطاع: [ ${userData.sector} ]\n` +
-                            `• الـمصدر: [ ${userData.source} ]\n` +
-                            `━━━━━━━━━━\nArise.`;
+
+            // تعطيل الزر وإظهار التحميل
+            ariseBtn.disabled = true;
+            ariseBtn.innerHTML = `جاري الرفع إلى السحاب <span class="loading-spinner"></span>`;
+
+            const studentData = {
+                name: userData.name.trim(),
+                source: userData.source.trim(),
+                level: userData.level,
+                sector: userData.sector,
+                phone: userData.phone.trim(),
+                date: new Date().toLocaleString('ar-SA', { hour12: false }),
+                star: false
+            };
+
             try {
-                await navigator.clipboard.writeText(message);
-                showToast("✅ تم نسخ الوثيقة تلقائياً! جارٍ التوجيه");
-            } catch (err) {
-                showToast("📋 تم التوجيه (تعذر النسخ)");
+                await studentsCollection.add(studentData);
+                showToast("✅ تم تسجيلك بنجاح في قاعدة بيانات Arise Academy!");
+                
+                // نسخ الوثيقة وفتح رابط المجموعة (اختياري)
+                const message = `ـ وثـيـقـة الأهلية ╎ 𝐄𝐋𝐈𝐆𝐈𝐁𝐈𝐋𝐈𝐓𝐘📑\n` +
+                                `• الـاسـم: [ ${userData.name} ]\n` +
+                                `• الـمـستوي: [ ${userData.level} ]\n` +
+                                `• الـقطاع: [ ${userData.sector} ]\n` +
+                                `• الـمصدر: [ ${userData.source} ]\n` +
+                                `• الـهـاتـف: [ ${userData.phone} ]\n` +
+                                `━━━━━━━━━━\nArise.`;
+                try {
+                    await navigator.clipboard.writeText(message);
+                } catch (e) {}
+                
+                // إعادة توجيه إلى مجموعة الواتساب (اختياري)
+                setTimeout(() => {
+                    window.location.href = 'https://chat.whatsapp.com/DC1XDyXPQHZ0CGkxX0X5Vu';
+                }, 1500);
+                
+            } catch (error) {
+                console.error(error);
+                showToast("❌ فشل الاتصال بقاعدة البيانات: " + error.message, true);
+                ariseBtn.disabled = false;
+                ariseBtn.innerHTML = 'ARISE';
             }
-            const waUrl = `https://chat.whatsapp.com/DC1XDyXPQHZ0CGkxX0X5Vu?text=${encodeURIComponent(message)}`;
-            window.open(waUrl, '_blank');
         }
         
         function addEnterBehavior() {
-            const inputs = [document.getElementById('input-name'), document.getElementById('input-source')];
+            const inputs = [document.getElementById('input-name'), document.getElementById('input-source'), phoneInput];
             inputs.forEach(inp => {
                 inp.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && !nextBtn.disabled && !isReviewMode && (currentStep === 1 || currentStep === 2)) {
+                    if (e.key === 'Enter' && !nextBtn.disabled && !isReviewMode && (currentStep === 1 || currentStep === 2 || currentStep === 5)) {
                         e.preventDefault();
                         handleNext();
                     }
@@ -632,12 +716,10 @@
             bindTextFields();
             addEnterBehavior();
             nextBtn.addEventListener('click', handleNext);
-            ariseBtn.addEventListener('click', sendToWhatsApp);
+            ariseBtn.addEventListener('click', sendToFirebaseAndProceed);
             editReviewBtn.addEventListener('click', exitReviewMode);
             validateCurrentStep();
             updateProgressAndStep();
-            document.getElementById('input-name').value = userData.name;
-            document.getElementById('input-source').value = userData.source;
         }
         
         init();
